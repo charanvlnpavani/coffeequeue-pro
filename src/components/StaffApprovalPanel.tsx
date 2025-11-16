@@ -55,12 +55,21 @@ const StaffApprovalPanel = () => {
   };
 
   const handleApprove = async (id: string, employeeId: string) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("employee_id")
+      .eq("id", user.id)
+      .single();
+
     const { error } = await supabase
       .from("login_requests")
       .update({
         status: "approved",
         responded_at: new Date().toISOString(),
-        responded_by: localStorage.getItem("employeeId") || "",
+        responded_by: profile?.employee_id || "",
       })
       .eq("id", id);
 
@@ -74,12 +83,21 @@ const StaffApprovalPanel = () => {
   };
 
   const handleReject = async (id: string, employeeId: string) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("employee_id")
+      .eq("id", user.id)
+      .single();
+
     const { error } = await supabase
       .from("login_requests")
       .update({
         status: "rejected",
         responded_at: new Date().toISOString(),
-        responded_by: localStorage.getItem("employeeId") || "",
+        responded_by: profile?.employee_id || "",
       })
       .eq("id", id);
 
