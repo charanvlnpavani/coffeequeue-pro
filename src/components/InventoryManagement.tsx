@@ -15,6 +15,12 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { z } from "zod";
+
+const reportSchema = z.object({
+  item_name: z.string().trim().min(1, "Item name is required").max(100, "Item name too long"),
+  reported_by: z.string().trim().min(1).max(50),
+});
 
 interface InventoryItem {
   id: string;
@@ -89,7 +95,7 @@ const InventoryManagement = ({ employeeId, isStaff }: InventoryManagementProps) 
       .order("item_name");
 
     if (error) {
-      console.error("Error fetching inventory:", error);
+      toast.error("Failed to load inventory");
       return;
     }
 
@@ -104,7 +110,7 @@ const InventoryManagement = ({ employeeId, isStaff }: InventoryManagementProps) 
       .order("reported_at", { ascending: false });
 
     if (error) {
-      console.error("Error fetching reports:", error);
+      toast.error("Failed to load reports");
       return;
     }
 
@@ -112,20 +118,24 @@ const InventoryManagement = ({ employeeId, isStaff }: InventoryManagementProps) 
   };
 
   const handleReportMissing = async () => {
-    if (!selectedItem) {
-      toast.error("Please select an item");
+    const validation = reportSchema.safeParse({
+      item_name: selectedItem,
+      reported_by: employeeId,
+    });
+
+    if (!validation.success) {
+      toast.error(validation.error.errors[0].message);
       return;
     }
 
     const { error } = await supabase.from("missing_item_reports").insert([
       {
-        item_name: selectedItem,
-        reported_by: employeeId,
+        item_name: validation.data.item_name,
+        reported_by: validation.data.reported_by,
       },
     ]);
 
     if (error) {
-      console.error("Error reporting item:", error);
       toast.error("Failed to report missing item");
       return;
     }
@@ -148,7 +158,6 @@ const InventoryManagement = ({ employeeId, isStaff }: InventoryManagementProps) 
       .eq("id", itemId);
 
     if (error) {
-      console.error("Error updating quantity:", error);
       toast.error("Failed to update quantity");
       return;
     }
@@ -166,7 +175,6 @@ const InventoryManagement = ({ employeeId, isStaff }: InventoryManagementProps) 
       .eq("id", reportId);
 
     if (error) {
-      console.error("Error resolving report:", error);
       toast.error("Failed to resolve report");
       return;
     }
