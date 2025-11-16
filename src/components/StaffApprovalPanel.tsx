@@ -47,7 +47,7 @@ const StaffApprovalPanel = () => {
       .order("requested_at", { ascending: true });
 
     if (error) {
-      console.error("Error fetching requests:", error);
+      toast.error("Failed to load requests");
       return;
     }
 
@@ -74,7 +74,6 @@ const StaffApprovalPanel = () => {
       .eq("id", id);
 
     if (error) {
-      console.error("Error approving request:", error);
       toast.error("Failed to approve request");
       return;
     }
@@ -102,7 +101,6 @@ const StaffApprovalPanel = () => {
       .eq("id", id);
 
     if (error) {
-      console.error("Error rejecting request:", error);
       toast.error("Failed to reject request");
       return;
     }

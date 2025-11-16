@@ -10,6 +10,14 @@ import { toast } from "sonner";
 import { Coffee } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEffect } from "react";
+import { z } from "zod";
+
+const signUpSchema = z.object({
+  email: z.string().email("Invalid email address").max(255, "Email too long"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+  fullName: z.string().trim().min(1, "Name is required").max(100, "Name too long"),
+  employeeId: z.string().trim().max(20, "Employee ID too long").regex(/^[A-Z0-9_-]*$/, "Employee ID can only contain uppercase letters, numbers, dashes, and underscores").optional(),
+});
 
 const Auth = () => {
   const [email, setEmail] = useState("");
@@ -28,8 +36,16 @@ const Auth = () => {
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.trim() || !password.trim() || !fullName.trim()) {
-      toast.error("Please fill in all required fields");
+
+    const validation = signUpSchema.safeParse({
+      email: email.trim(),
+      password,
+      fullName: fullName.trim(),
+      employeeId: employeeId.trim() || undefined,
+    });
+
+    if (!validation.success) {
+      toast.error(validation.error.errors[0].message);
       return;
     }
 
@@ -37,13 +53,13 @@ const Auth = () => {
 
     try {
       const { error } = await supabase.auth.signUp({
-        email,
-        password,
+        email: validation.data.email,
+        password: validation.data.password,
         options: {
           emailRedirectTo: `${window.location.origin}/dashboard`,
           data: {
-            full_name: fullName,
-            employee_id: employeeId || undefined,
+            full_name: validation.data.fullName,
+            employee_id: validation.data.employeeId,
           },
         },
       });
@@ -56,7 +72,7 @@ const Auth = () => {
       setFullName("");
       setEmployeeId("");
     } catch (error: any) {
-      toast.error(error.message || "Sign up failed");
+      toast.error("Sign up failed. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -73,7 +89,7 @@ const Auth = () => {
 
     try {
       const { error } = await supabase.auth.signInWithPassword({
-        email,
+        email: email.trim(),
         password,
       });
 
@@ -82,7 +98,7 @@ const Auth = () => {
       toast.success("Welcome back!");
       navigate("/dashboard");
     } catch (error: any) {
-      toast.error(error.message || "Sign in failed");
+      toast.error("Sign in failed. Please check your credentials.");
     } finally {
       setLoading(false);
     }

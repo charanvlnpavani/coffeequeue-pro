@@ -5,6 +5,12 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Coffee, Clock, Users, Plus } from "lucide-react";
+import { z } from "zod";
+
+const queueJoinSchema = z.object({
+  employee_id: z.string().trim().min(1).max(50),
+  employee_name: z.string().trim().min(1).max(100),
+});
 
 interface QueueItem {
   id: string;
@@ -68,7 +74,7 @@ const CoffeeQueueDisplay = ({ employeeId, employeeName }: CoffeeQueueDisplayProp
       .order("joined_at", { ascending: true });
 
     if (error) {
-      console.error("Error fetching queue:", error);
+      toast.error("Failed to load queue");
       return;
     }
 
@@ -76,16 +82,25 @@ const CoffeeQueueDisplay = ({ employeeId, employeeName }: CoffeeQueueDisplayProp
   };
 
   const handleJoinQueue = async () => {
+    const validation = queueJoinSchema.safeParse({
+      employee_id: employeeId,
+      employee_name: employeeName,
+    });
+
+    if (!validation.success) {
+      toast.error("Invalid employee information");
+      return;
+    }
+
     const { error } = await supabase.from("coffee_queue").insert([
       {
-        employee_id: employeeId,
-        employee_name: employeeName,
+        employee_id: validation.data.employee_id,
+        employee_name: validation.data.employee_name,
         position: queue.length + 1,
       },
     ]);
 
     if (error) {
-      console.error("Error joining queue:", error);
       toast.error("Failed to join queue");
       return;
     }
@@ -101,7 +116,6 @@ const CoffeeQueueDisplay = ({ employeeId, employeeName }: CoffeeQueueDisplayProp
       .eq("status", "waiting");
 
     if (error) {
-      console.error("Error leaving queue:", error);
       toast.error("Failed to leave queue");
       return;
     }
