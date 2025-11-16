@@ -1,40 +1,54 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { toast } from "sonner";
-import { LogOut, Coffee } from "lucide-react";
 import StaffApprovalPanel from "@/components/StaffApprovalPanel";
 import CoffeeQueueDisplay from "@/components/CoffeeQueueDisplay";
 import InventoryManagement from "@/components/InventoryManagement";
+import { LogOut, Coffee } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useUserRole } from "@/hooks/useUserRole";
+import { supabase } from "@/integrations/supabase/client";
 
 const Dashboard = () => {
-  const [employeeId, setEmployeeId] = useState("");
-  const [employeeName, setEmployeeName] = useState("");
-  const [isStaff, setIsStaff] = useState(false);
   const navigate = useNavigate();
+  const { user, loading: authLoading, signOut } = useAuth();
+  const { isStaff, loading: roleLoading } = useUserRole();
+  const [profile, setProfile] = useState<{ employee_id: string; full_name: string } | null>(null);
 
   useEffect(() => {
-    const storedEmployeeId = localStorage.getItem("employeeId");
-    const storedEmployeeName = localStorage.getItem("employeeName");
-    const storedIsStaff = localStorage.getItem("isStaff") === "true";
-
-    if (!storedEmployeeId) {
-      navigate("/");
+    if (!authLoading && !user) {
+      navigate("/auth");
       return;
     }
 
-    setEmployeeId(storedEmployeeId);
-    setEmployeeName(storedEmployeeName || "");
-    setIsStaff(storedIsStaff);
-  }, [navigate]);
+    if (user) {
+      const fetchProfile = async () => {
+        const { data } = await supabase
+          .from("profiles")
+          .select("employee_id, full_name")
+          .eq("id", user.id)
+          .single();
+        
+        if (data) {
+          setProfile(data);
+        }
+      };
+      
+      fetchProfile();
+    }
+  }, [user, authLoading, navigate]);
 
-  const handleLogout = () => {
-    localStorage.removeItem("employeeId");
-    localStorage.removeItem("employeeName");
-    localStorage.removeItem("isStaff");
-    toast.info("Logged out successfully");
-    navigate("/");
+  const handleLogout = async () => {
+    await signOut();
   };
+
+  if (authLoading || roleLoading || !profile) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Coffee className="w-12 h-12 text-primary animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-muted to-background">
@@ -48,7 +62,7 @@ const Dashboard = () => {
             <div>
               <h1 className="text-2xl font-bold text-foreground">Pantry Manager</h1>
               <p className="text-sm text-muted-foreground">
-                {employeeName} ({employeeId}) {isStaff && "• Staff"}
+                {profile.full_name} ({profile.employee_id}) {isStaff && "• Staff"}
               </p>
             </div>
           </div>
@@ -69,11 +83,8 @@ const Dashboard = () => {
             </div>
           )}
 
-          {/* Coffee Queue Display */}
-          <CoffeeQueueDisplay employeeId={employeeId} employeeName={employeeName} />
-
-          {/* Inventory Management */}
-          <InventoryManagement employeeId={employeeId} isStaff={isStaff} />
+          <CoffeeQueueDisplay employeeId={profile.employee_id} employeeName={profile.full_name} />
+          <InventoryManagement employeeId={profile.employee_id} isStaff={isStaff} />
         </div>
       </main>
     </div>
